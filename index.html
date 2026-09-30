@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rango - Controle de Marmitas</title>
+  
+  <!-- Favicon com a mesma imagem de Bento Box do topo -->
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="alternate icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+  <!-- PWA & Mobile Web App Meta Tags -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#f97316">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rango">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-icon">🍱</span>
+        <div>
+          <h1>Rango</h1>
+          <p class="subtitle">Controle semanal de marmitas</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnOpenSettings" class="btn btn-secondary btn-icon" title="Configurar Valores Padrão">
+          ⚙️ <span>Configurar Preços</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Total a Pagar Hero Banner -->
+    <section class="summary-card">
+      <div class="summary-main">
+        <span class="summary-label">Total a pagar</span>
+        <div class="summary-amount" id="totalAmount">R$ 0,00</div>
+        <div class="summary-breakdown" id="summaryBreakdown">
+          0 marmitas nesta semana (0 M • 0 P)
+        </div>
+      </div>
+      
+      <div class="summary-actions">
+        <button id="btnOpenModal" class="btn btn-primary btn-lg">
+          ➕ <span>Lançar Marmita</span>
+        </button>
+        <button id="btnMarkPaid" class="btn btn-success btn-lg" disabled>
+          ✅ <span>Marcar como Pago</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Quick Add Section (Atalhos rápidos) -->
+    <section class="quick-add-bar">
+      <span class="quick-label">⚡ Lançamento rápido para hoje:</span>
+      <div class="quick-buttons">
+        <button id="btnQuickAddM" class="btn btn-chip">
+          + 1 Marmita <strong>M</strong> (<span class="price-m-display">R$ 18,00</span>)
+        </button>
+        <button id="btnQuickAddP" class="btn btn-chip">
+          + 1 Marmita <strong>P</strong> (<span class="price-p-display">R$ 9,00</span>)
+        </button>
+      </div>
+    </section>
+
+    <!-- Lista de Marmitas -->
+    <main class="content-section">
+      <div class="section-header">
+        <h2>Marmitas da Semana</h2>
+        <span class="counter-badge" id="listCounter">0 lançamentos</span>
+      </div>
+
+      <div id="marmitasListContainer" class="list-container">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <p>Dados salvos automaticamente no navegador (LocalStorage). Sem login, direto e prático.</p>
+    </footer>
+  </div>
+
+  <!-- Modal: Lançar Marmita -->
+  <div id="modalAdd" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-labelledby="modalAddTitle">
+      <div class="modal-header">
+        <h3 id="modalAddTitle">🍱 Lançar Nova Marmita</h3>
+        <button class="btn-close" id="btnCloseAddModal" aria-label="Fechar modal">&times;</button>
+      </div>
+
+      <form id="formAddMarmita">
+        <div class="form-group">
+          <label for="inputDayOfWeek">Dia da Semana</label>
+          <select id="inputDayOfWeek" required>
+            <option value="Segunda-feira">Segunda-feira</option>
+            <option value="Terça-feira">Terça-feira</option>
+            <option value="Quarta-feira">Quarta-feira</option>
+            <option value="Quinta-feira">Quinta-feira</option>
+            <option value="Sexta-feira">Sexta-feira</option>
+            <option value="Sábado">Sábado</option>
+            <option value="Domingo">Domingo</option>
+          </select>
+          <small class="form-hint">Já vem com o dia de hoje, mas você pode mudar.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Tamanho da Marmita</label>
+          <div class="size-selector">
+            <label class="size-option">
+              <input type="radio" name="marmitaSize" value="M" checked>
+              <div class="size-card">
+                <span class="size-badge">M</span>
+                <span class="size-title">Média (Padrão)</span>
+                <span class="size-price" id="labelPriceM">R$ 18,00</span>
+              </div>
+            </label>
+
+            <label class="size-option">
+              <input type="radio" name="marmitaSize" value="P">
+              <div class="size-card">
+                <span class="size-badge">P</span>
+                <span class="size-title">Pequena</span>
+                <span class="size-price" id="labelPriceP">R$ 9,00</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputValue">Valor desta Marmita (R$)</label>
+          <div class="input-money-wrapper">
+            <span class="currency-symbol">R$</span>
+            <input type="number" id="inputValue" step="0.50" min="0" required>
+          </div>
+          <small class="form-hint">Calculado automaticamente, mas pode alterar se teve algo especial.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="inputObs">Observação (opcional)</label>
+          <input type="text" id="inputObs" placeholder="Ex: Feijoada, sem salada, suco junto...">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelAdd">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Marmita</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Configurar Preços Padrão -->
+  <div id="modalSettings" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-labelledby="modalSettingsTitle">
+      <div class="modal-header">
+        <h3 id="modalSettingsTitle">⚙️ Preços Padrão das Marmitas</h3>
+        <button class="btn-close" id="btnCloseSettingsModal" aria-label="Fechar modal">&times;</button>
+      </div>
+
+      <form id="formSettings">
+        <p class="modal-description">
+          Ajuste aqui os valores padrão para quando sua irmã alterar o preço. Os novos lançamentos usarão esses valores.
+        </p>
+
+        <div class="form-group">
+          <label for="settingPriceM">Valor Padrão da Marmita M (R$)</label>
+          <div class="input-money-wrapper">
+            <span class="currency-symbol">R$</span>
+            <input type="number" id="settingPriceM" step="0.50" min="0" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="settingPriceP">Valor Padrão da Marmita P (R$)</label>
+          <div class="input-money-wrapper">
+            <span class="currency-symbol">R$</span>
+            <input type="number" id="settingPriceP" step="0.50" min="0" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelSettings">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Preços</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmação Marcar como Pago -->
+  <div id="modalConfirmPaid" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card modal-card-sm" role="dialog" aria-labelledby="modalConfirmPaidTitle">
+      <div class="modal-header">
+        <h3 id="modalConfirmPaidTitle">✅ Marcar como Pago?</h3>
+        <button class="btn-close" id="btnCloseConfirmModal" aria-label="Fechar modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p>Você está prestes a quitar e zerar todas as marmitas desta semana:</p>
+        <div class="confirm-total-box">
+          <span class="confirm-label">Valor total a pagar:</span>
+          <strong class="confirm-amount" id="confirmPaidAmount">R$ 0,00</strong>
+        </div>
+        <p class="warning-text">⚠️ Isso excluirá todos os lançamentos atuais para começar uma nova semana limpa.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnCancelPaid">Voltar</button>
+        <button type="button" class="btn btn-success" id="btnConfirmPaidAction">Sim, Tudo Pago!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificações -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
