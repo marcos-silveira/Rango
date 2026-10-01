@@ -456,6 +456,8 @@ if ('serviceWorker' in navigator) {
       .register('./sw.js')
       .then((reg) => {
         console.log('🍱 Rango PWA pronto e registrado:', reg.scope);
+        // Garante busca imediata de novas versões
+        reg.update();
       })
       .catch((err) => {
         console.warn('Falha ao registrar Service Worker do PWA:', err);

@@ -2,7 +2,7 @@
   "name": "Rango - Marmitas da Semana",
   "short_name": "Rango",
   "description": "Controle semanal de marmitas e acertos financeiros simples",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f8fafc",

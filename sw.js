@@ -1,7 +1,13 @@
-const CACHE_NAME = 'rango-cache-v1';
+/**
+ * Rango PWA - Service Worker v2
+ * Otimizado para Safari/WebKit e hospedagens com Clean URLs (Render, Vercel, Netlify).
+ * Previne o erro "Response served by service worker has redirections".
+ */
+
+const CACHE_NAME = 'rango-cache-v2';
+
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
   './css/style.css',
   './js/app.js',
   './manifest.webmanifest',
@@ -12,16 +18,44 @@ const ASSETS_TO_CACHE = [
   './icons/apple-touch-icon.png'
 ];
 
-// Instalação do Service Worker e pré-cache dos recursos estáticos
+/**
+ * Safari WebKit Workaround:
+ * O WebKit proíbe que o Service Worker retorne responses com a flag interna "redirected: true"
+ * para requisições de navegação. Esta função recria uma Response limpa, mantendo o conteúdo
+ * e cabeçalhos, mas removendo a flag de redirecionamento.
+ */
+async function cleanResponse(response) {
+  if (!response || !response.redirected) {
+    return response;
+  }
+  const body = await response.blob();
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers
+  });
+}
+
+// 1. Instalação: baixa e limpa os recursos no cache
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const asset of ASSETS_TO_CACHE) {
+        try {
+          const res = await fetch(asset);
+          if (res.ok) {
+            const clean = await cleanResponse(res);
+            await cache.put(asset, clean);
+          }
+        } catch (err) {
+          console.warn('[SW] Falha ao cachear asset:', asset, err);
+        }
+      }
     }).then(() => self.skipWaiting())
   );
 });
 
-// Ativação e limpeza de caches antigos
+// 2. Ativação: assume controle imediatamente e remove caches antigos (v1)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -34,31 +68,77 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Estratégia de Cache: Stale-While-Revalidate para máxima agilidade e suporte offline completo
+// 3. Interceptação de Fetch
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Busca atualizada em segundo plano
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Se estiver offline e navegando, redireciona para a página principal
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
-        });
+  // Tratamento especial para requisições de navegação (abertura do PWA / troca de página)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        // Tenta buscar no cache primeiro (offline-first para abertura rápida)
+        const cached = await caches.match('./');
+        if (cached) {
+          // Atualiza em background
+          fetch(event.request)
+            .then(async (networkRes) => {
+              if (networkRes && networkRes.status === 200) {
+                const clean = await cleanResponse(networkRes);
+                const cache = await caches.open(CACHE_NAME);
+                await cache.put('./', clean);
+              }
+            })
+            .catch(() => {});
 
-      return cachedResponse || fetchPromise;
-    })
+          return await cleanResponse(cached);
+        }
+
+        // Se não estiver em cache, busca na rede e sanitiza
+        try {
+          const networkRes = await fetch(event.request);
+          if (networkRes && networkRes.status === 200) {
+            const clean = await cleanResponse(networkRes.clone());
+            const cache = await caches.open(CACHE_NAME);
+            cache.put('./', clean).catch(() => {});
+          }
+          return await cleanResponse(networkRes);
+        } catch (err) {
+          const fallback = await caches.match('./');
+          if (fallback) return await cleanResponse(fallback);
+          throw err;
+        }
+      })()
+    );
+    return;
+  }
+
+  // Para assets estáticos normais (CSS, JS, imagens, ícones)
+  event.respondWith(
+    (async () => {
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) {
+        // Revalidação em segundo plano
+        fetch(event.request)
+          .then(async (networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clean = await cleanResponse(networkResponse.clone());
+              const cache = await caches.open(CACHE_NAME);
+              await cache.put(event.request, clean);
+            }
+          })
+          .catch(() => {});
+
+        return await cleanResponse(cachedResponse);
+      }
+
+      // Busca na rede se não estiver em cache
+      const networkResponse = await fetch(event.request);
+      if (networkResponse && networkResponse.status === 200) {
+        const clean = await cleanResponse(networkResponse.clone());
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(event.request, clean).catch(() => {});
+      }
+      return await cleanResponse(networkResponse);
+    })()
   );
 });
