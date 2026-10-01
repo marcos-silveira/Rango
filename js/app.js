@@ -453,9 +453,11 @@ document.addEventListener('DOMContentLoaded', () => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('./sw.js')
+      .register('./sw.js?v=2.0.0')
       .then((reg) => {
-        console.log('🍱 Rango PWA pronto e registrado:', reg.scope);
+        console.log('🍱 Rango PWA v2 pronto e registrado:', reg.scope);
+        // Força busca imediata da nova versão no servidor
+        reg.update();
       })
       .catch((err) => {
         console.warn('Falha ao registrar Service Worker do PWA:', err);

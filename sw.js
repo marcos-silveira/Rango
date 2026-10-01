@@ -8,9 +8,9 @@ const CACHE_NAME = 'rango-cache-v2';
 
 const ASSETS_TO_CACHE = [
   './',
-  './css/style.css',
-  './js/app.js',
-  './manifest.webmanifest',
+  './css/style.css?v=2.0.0',
+  './js/app.js?v=2.0.0',
+  './manifest.webmanifest?v=2.0.0',
   './icons/favicon.svg',
   './icons/favicon-32x32.png',
   './icons/icon-192.png',
@@ -115,7 +115,7 @@ self.addEventListener('fetch', (event) => {
   // Para assets estáticos normais (CSS, JS, imagens, ícones)
   event.respondWith(
     (async () => {
-      const cachedResponse = await caches.match(event.request);
+      const cachedResponse = (await caches.match(event.request)) || (await caches.match(event.request, { ignoreSearch: true }));
       if (cachedResponse) {
         // Revalidação em segundo plano
         fetch(event.request)
